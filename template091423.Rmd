@@ -1,0 +1,53 @@
+---
+title: "Simple document"
+author: "Sarah Younes"
+date: "2023-09-12"
+output: github_document
+---
+
+```{r}
+library(tidyverse)
+```
+
+I'm an R Markdown document! 
+
+# Section 1: First code chunk
+
+Here's a **code chunk** that samples from 
+a _normal distribution_:
+
+```{r}
+samp = rnorm(100)
+length(samp)
+```
+
+# Section 2: Make a plot
+
+This code is borrowed from the last lecture; it creates a dataframe for plotting.
+
+```{r}
+plot_df = tibble(
+  x = rnorm(1000, sd = .5),
+  y = 1 + 2 * x + rnorm(1000)
+)
+```
+
+Next up is a histogram of the 'x' variable in 'plot_df'.
+
+```{r}
+ggplot(plot_df, aes(x = x)) + geom_histogram()
+```
+
+# Section 3: Learning assessment
+
+Here is a test data frame from the learning assessment:
+
+```{r learning_assessment_1}
+example_df = tibble(
+  norm_samp = rnorm(500, mean = 1),
+  norm_samp_pos = norm_samp > 0,
+  abs_norm_samp = abs(norm_samp)
+)
+``` 
+
+

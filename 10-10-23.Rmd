@@ -1,0 +1,142 @@
+---
+title: "case study"
+date: "2023-10-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+load dataset:
+
+```{r message=FALSE}
+library(tidyverse)
+library(ggridges)
+library(p8105.datasets)
+data(nyc_airbnb)
+```
+
+```{r}
+nyc_airbnb =
+  nyc_airbnb |>
+  rename(borough = neighbourhood_group) |>
+  mutate(stars = review_scores_location / 2)
+```
+
+Questions we can ask:
+- Where are Airbnbs most expensive?
+    - Do borough, neighborhood, rating affect price?
+- How long are Airbnb's active?
+- Which units have the most availability?
+- How does review impact impacted by location?
+- How many apartments are run only by one host?
+    - Does that affect price?
+    - Does that vary by neighborhood?
+- Where are the most Airbnbs?
+
+Where are the most Airbnbs?
+```{r}
+nyc_airbnb |>
+  count(borough)
+```
+
+Where are Airbnbs expensive? Which room types are most expensive?
+(can replace mean with median if the distribution may be skewed)
+```{r}
+nyc_airbnb |>
+  group_by(borough) |>
+  summarize(mean_price = mean(price))
+
+nyc_airbnb |>
+  group_by(borough, room_type) |>
+  summarize(mean_price = mean(price)) |>
+  pivot_wider(
+    names_from = room_type,
+    values_from = mean_price
+  )
+```
+
+Some visualizations:
+```{r}
+nyc_airbnb |>
+  filter(price < 1000, room_type == "Entire home/apt") |>
+  ggplot(aes(x = price)) +
+  geom_histogram() +
+  facet_grid(. ~ borough)
+```
+
+Where in Manhattan are places most expensive?
+```{r}
+nyc_airbnb |>
+  filter(
+    price < 1000,
+    room_type == "Entire home/apt",
+    borough == "Manhattan"
+  ) |>
+  group_by(neighbourhood) |>
+  summarize(
+    n_apts = n(),
+    mean_price = mean(price)) |>
+  arrange(desc(mean_price))
+```
+
+Visualizing distribution of price across Manhattan
+- fct_reorder: take the average price of each neighborhood and re-order
+```{r}
+nyc_airbnb |>
+  filter(
+    price < 1000,
+    room_type == "Entire home/apt",
+    borough == "Manhattan"
+  ) |>
+  mutate(neighbourhood = fct_reorder(neighbourhood, price)) |>
+  ggplot(aes(x = price, y = neighbourhood)) +
+  geom_density_ridges()
+```
+
+How many apartments are run only by one host?
+
+How many units have the most and least availability?
+```{r}
+nyc_airbnb |>
+  filter(availability_365 == 365 | availability_365 == 1) |>
+  group_by(availability_365) |>
+  count()
+```
+
+# Try to make a map
+
+We have latitude and longitude
+
+```{r}
+nyc_airbnb |>
+  filter(
+    price < 1000,
+    room_type == "Entire home/apt",
+    borough == "Manhattan"
+  ) |>
+  ggplot(aes(x = lat, y = long, color = price)) +
+  geom_point()
+```
+
+Let's try something else with the leaflet package:
+
+- sample_n() lets you select a limited sample
+- addProviderTiles(providers$CartoDB.Positron) to change the background to black and white
+- addTiles() to be the standard colorful map
+- need to install webshot or webshot2 package for knitr to take a screenshot
+```{r}
+library(leaflet)
+
+nyc_airbnb |>
+  filter(
+    price < 1000,
+    room_type == "Entire home/apt",
+    borough == "Manhattan"
+  ) |>
+  sample_n(200) |>
+  leaflet() |>
+  addProviderTiles(providers$CartoDB.Positron) |>
+  addMarkers(~lat, ~long)
+```

@@ -1,0 +1,92 @@
+---
+title: "Data Wrangling II"
+date: "2023-10-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE}
+library(tidyverse)
+library(rvest)
+library(httr)
+```
+
+# Scraping
+
+```{r message=FALSE}
+url = "http://samhda.s3-us-gov-west-1.amazonaws.com/s3fs-public/field-uploads/2k15StateFiles/NSDUHsaeShortTermCHG2015.htm"
+drug_use_html = read_html(url)
+
+drug_use_html
+```
+
+now we will pull out relevant elements starting with the table using html_table()
+- there are 15 tables stored as lists, but let's say we want the 1st table only using first()
+- recommend removing rows by slicing (first row is a note)
+
+```{r}
+marijuana_df =
+  drug_use_html |>
+  html_table() |>
+  first() |>
+  slice(-1)
+```
+
+# CSS Selector
+
+now we will construct a dataset for StarWars movies
+
+```{r}
+starwars_url = "https://www.imdb.com/list/ls070150896/"
+
+starwars_html = read_html(starwars_url)
+```
+
+the data isn't stored in a table, so we will to figure out the elements we need using CSS Selector
+- everything you want is highlighted with green or yellow, everything you don't want is green
+- html_text() after html_elements() to extract the text
+
+```{r}
+starwars_movies =
+  starwars_html |>
+  html_elements(".lister-item-header a") |>
+  html_text()
+
+starwars_revenue =
+  starwars_html |>
+  html_elements(".text-small:nth-child(7) span:nth-child(5)") |>
+  html_text()
+```
+
+# APIs
+
+get water data from NYC's open data
+- on the website, get data and click API Docs (convert to csv, not json)
+- parse to clean it up
+
+```{r}
+nyc_water_df =
+  GET("https://data.cityofnewyork.us/resource/ia2d-e54m.csv") |>
+  content("parsed")
+```
+
+new dataset:
+- by default, the CDC API limits data to the first 1000 rows, so increase that by changing an element of the API query
+
+```{r}
+brffs_df =
+  GET("https://data.cdc.gov/resource/acme-vg9e.csv",
+      query = list("$limit" = 5000)) |>
+  content("parsed")
+```
+
+sometimes APIs don't give you structured things:
+
+```{r}
+poke_df = 
+  GET("https://pokeapi.co/api/v2/pokemon/ditto") |>
+  content()
+```

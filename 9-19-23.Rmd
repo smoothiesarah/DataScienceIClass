@@ -1,0 +1,53 @@
+---
+title: "9-19-23"
+author: "Sarah Younes"
+date: "2023-09-19"
+output: html_document
+---
+
+```{r include = FALSE}
+library(tidyverse)
+```
+
+## R Markdown
+
+Let's import the 'FAS_litters.csv' csv using a relative path.
+
+```{r}
+litters_df =
+read_csv("FAS_litters.csv")
+
+litters_df =
+  janitor::clean_names(litters_df)
+```
+
+```{r}
+pups_df =
+  read_csv("FAS_pups.csv")
+
+pups_df =
+  janitor::clean_names(pups_df)
+```
+
+```{r, eval = FALSE}
+view(litters_df)
+```
+
+Look at data summary:
+
+```{r}
+str(litters_df)
+```
+
+Load an Excel file:
+
+```{r}
+library(readxl)
+excel_file =
+  read_excel("mlb11.xlsx")
+```
+
+```{r}
+litters_df_cleaned =
+  janitor::clean_names(litters_df)
+```

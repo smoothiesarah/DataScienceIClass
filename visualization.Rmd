@@ -1,0 +1,603 @@
+---
+title: "Visualization: sessions 8-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r barbie theme, message = FALSE}
+# install.packages("remotes")
+remotes::install_github("MatthewBJane/ThemePark")
+
+library(ThemePark)
+head(themepark_themes)
+```
+
+```{r}
+library(tidyverse)
+library(ggridges)
+
+knitr::opts_chunk$set(
+  fig.width = 6,
+  fig.asp = .6,
+  out.width = "90%"
+)
+
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728", "USW00022534", "USS0023B17S"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2021-01-01",
+    date_max = "2022-12-31") |>
+  mutate(
+    name = recode(
+      id, 
+      USW00094728 = "CentralPark_NY", 
+      USW00022534 = "Molokai_HI",
+      USS0023B17S = "Waterhole_WA"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) |>
+  select(name, id, everything())
+```
+
+# Class 1: Basic scatterplot
+
+```{r}
+ggplot(weather_df, aes(x = tmin, y = tmax)) +
+  geom_point()
+```
+
+You can also take/start with the df and pipe the scatterplot, and it will create exactly the same plot:
+
+```{r}
+weather_df |>
+  ggplot(aes(x = tmin, y = tmax)) +
+  geom_point()
+```
+
+Piping may make filtering easier. You don't have to create a separate df just for New York, for example:
+
+```{r}
+nyc_weather =
+  weather_df |>
+  filter(name == "CentralParkNY") |>
+  ggplot(aes(x = tmin, y = tmax)) +
+  geom_point()
+
+nyc_weather + geom_point()
+```
+
+# Fancy plot
+
+color can be added to the entire plot in ggplot or to the points in geom_point
+
+geom_smooth adds a smooth curve
+
+se = FALSE removes standard error bars from the curve
+
+alpha blending/shading make the points more transparent (0.3 = 30% solid 70% opaque)
+
+```{r}
+ggplot(weather_df, aes(x = tmin, y = tmax)) +
+  geom_point(aes(color = name), alpha = 0.3) +
+  geom_smooth(se = FALSE)
+```
+
+Plot with facets:
+
+```{r}
+ggplot(weather_df, aes(x = tmin, y = tmax, color = name)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth() +
+  facet_grid(. ~ name)
+```
+
+Another fancy plot:
+
+size = precipitation (higher precipitation = larger size)
+
+```{r}
+ggplot(weather_df, aes(x = date, y = tmax, color = name)) +
+  geom_point(aes(size = prcp), alpha = 0.3, size = 0.5) +
+  geom_smooth() +
+  facet_grid(. ~ name)
+```
+
+Assigning specific colors to specific things:
+
+Need to assign the color in geom_point, not ggplot because aesthetic mappings takes variables from your dataset and maps them onto colors
+```{r}
+weather_df |>
+  filter(name == "CentralPark_NY") |>
+  ggplot(aes(x = date, y = tmax)) +
+  geom_point(color = "blue")
+```
+
+Hex plot:
+
+```{r}
+weather_df |>
+  ggplot(aes(x = tmin, y = tmax)) +
+  geom_hex()
+```
+
+Line plot:
+```{r}
+weather_df |>
+  filter(name == "Molokai_HI") |>
+  ggplot(aes(x = date, y = tmax)) +
+  geom_line()
+```
+
+Can combine line plot with points:
+```{r}
+weather_df |>
+  filter(name == "Molokai_HI") |>
+  ggplot(aes(x = date, y = tmax)) +
+  geom_line(alpha = 0.3) +
+  geom_point(size = 0.3)
+```
+
+# Univariate plotting
+
+Easiest starting point for this is a basic histogram:
+
+```{r}
+ggplot(weather_df, aes(x = tmax)) +
+  geom_histogram()
+```
+
+fill argument fills in colors for histogram
+
+position = "dodge" places bars for each group side-by-side - bars should avoid each other rather than stack up on each other (however, this can get difficult --> easier to use density plots)
+
+```{r}
+ggplot(weather_df, aes(x = tmax, fill = name)) +
+  geom_histogram(position = "dodge", binwidth = 2)
+```
+
+Density plot:
+
+adjust argument is similar to binwidth in histograms
+
+if you over-smooth or under-smooth, you may miss the message you're trying to make
+
+density plots show more distribution than box plots
+
+```{r}
+ggplot(weather_df, aes(x = tmax, fill = name)) +
+  geom_density(alpha = 0.3, adjust = 2)
+```
+
+Basic boxplots:
+
+```{r}
+ggplot(weather_df, aes(y = tmax)) +
+  geom_boxplot()
+```
+
+Can compare by group, e.g., name:
+
+```{r}
+ggplot(weather_df, aes(x = name, y = tmax)) +
+  geom_boxplot()
+```
+
+Violin plot:
+
+```{r}
+ggplot(weather_df, aes(x = name, y = tmax)) +
+  geom_violin()
+```
+
+Ridge plot:
+
+```{r}
+ggplot(weather_df, aes(x = tmax, y = name)) +
+  geom_density_ridges(scale = 0.9)
+```
+
+# Saving and embedding plots
+
+```{r}
+ggp_weather =
+  ggplot(weather_df, aes(x = tmin, y = tmax)) +
+  geom_point(aes(color = name), alpha = 0.5)
+
+ggsave("ggp_weather.pdf", ggp_weather, width = 8, height = 5)
+```
+
+```{r, fig.width = 12, fig.height = 12}
+ggp_weather
+```
+
+You can also set options globally in the beginning after loading packages with this code:
+
+knitr::opts_chunk$set(
+  fig.width = 6,
+  fig.asp = .6,
+  out.width = "90%"
+)
+
+fig.asp = aspect ratio
+
+# Class 2: Same plot from last time
+
+labs(x or y) renames axis on the graph
+  labs(color) renames the legend in this case since the colors are the legend
+  labs(title) adds a header at the top
+  labs(caption) adds a caption at the bottom
+  
+scale_x_continuous(breaks = ) tells you where you want the tick marks on the x axis
+  (labels = ) helps you label the x axis ticks
+  can do scale_y_continuous
+    (position = "right") moves the y axis to the right side of the graph
+    (trans = "sqrt") transforms the data
+    (limits = c(0, 30)) zooms into/scales the graph to fit 0-30 instead of the default -15 to 40 range
+
+```{r}
+weather_df |>
+  ggplot(aes(x = tmin, y = tmax, color = name)) +
+  geom_point(alpha = 0.5) +
+  labs(
+    x = "Min daily temp (Degrees C)",
+    y = "Max daily temp",
+    color = "Location",
+    title = "Temperature plot",
+    caption = "The data was retreieved from moaa"
+  ) +
+  scale_x_continuous(
+    breaks = c(-15, 0, 15),
+    labels = c("-15 C", "0 C", "15 C")
+  ) +
+  scale_y_continuous(
+    position = "right",
+    limits = c(0, 30)
+  )
+```
+
+# Changing colors
+
+there are a lot of different scales you can adjust under scale_color
+
+scale_color_hue works well for categorical variables
+  e.g.,
+    + scale_color_hue(h = c(100, 300))
+
+viridis package is good for colors
+  option = "magma" because magma is one of the color scales besides viridis, for example
+  discrete = TRUE relates to variable type (categorical vs. continuous)
+
+```{r}
+weather_df |>
+  ggplot(aes(x = tmin, y = tmax, color = name)) +
+  geom_point(alpha = 0.5) +
+  labs(
+    x = "Min daily temp (Degrees C)",
+    y = "Max daily temp",
+    color = "Location",
+    title = "Temperature plot",
+    caption = "The data was retreieved from moaa"
+  ) +
+  viridis::scale_color_viridis(discrete = TRUE)
+```
+
+other chart details:
+
+theme_bw() inverts the default grey background to a white background
+  be careful about the order in which you put this in - it can be a reset so try to put it high in order
+  
+  theme_classic() is like theme_bw() hides gridlines and a thick border
+  
+  theme_minimal() is my personal favorite
+
+```{r}
+weather_df |>
+  ggplot(aes(x = tmin, y = tmax, color = name)) +
+  geom_point(alpha = 0.5) +
+  labs(
+    x = "Min daily temp (Degrees C)",
+    y = "Max daily temp",
+    color = "Location",
+    title = "Temperature plot",
+    caption = "The data was retreieved from moaa"
+  ) +
+  viridis::scale_color_viridis(discrete = TRUE) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+weather_df |>
+  ggplot(aes(x = date, y = tmax)) +
+  geom_point(aes(color = name)) +
+  geom_smooth()
+
+nyc_weather_df =
+  weather_df |>
+  filter(name == "CentralPark_NY")
+
+hawaii_weather_df =
+  weather_df |>
+  filter(name == "Molokai_HI")
+
+ggplot(nyc_weather_df, aes(x = date, y = tmax)) +
+  geom_point() +
+  geom_line(data = hawaii_weather_df) +
+  ThemePark::theme_barbie() +
+  labs(
+    title = "I made this barbie-themed plot for you"
+  )
+```
+
+# Patchwork
+
+faceting - I want this plot duplicated for another related variable
+  not good if you want two completely different plots
+
+```{r}
+weather_df |>
+  ggplot(aes(x = date, y = tmax, color = name)) +
+  geom_point() +
+  facet_grid(. ~ name) +
+  ThemePark::theme_barbie() +
+  labs(
+    title = "this one is slightly cuter"
+  )
+```
+
+to put them side by side:
+
+```{r}
+ggp_temp_scatter =
+  weather_df |>
+  ggplot(aes(x = tmin, y = tmax, color = name)) +
+  geom_point(alpha = .5)
+
+ggp_precip_density =
+  weather_df |>
+  ggplot(aes(x = prcp, color = name)) +
+  geom_density()
+```
+
+# Data manipulation
+
+factor variables are thought of as categorical variables with order/levels, whereas characters are just characters with no structure
+  this is important now because when ggplot has to figure out what goes onto which axis and the order of colors, it converts it to a factor variable in the background and by default uses alphabetical order
+  need to change the variable structure to change the other
+
+fct_reorder function lets you put name in order of some other variable
+  fct_relevel is manual?
+
+```{r}
+weather_df |>
+  mutate(
+    name = fct_relevel(name, c("Molokai_HI", "CentralPark_NY", "Waterhole_MA"))
+  ) |>
+  ggplot(aes(x = name, y = tmax)) +
+  geom_boxplot()
+```
+
+```{r}
+weather_df |>
+  mutate(
+    name = fct_reorder(name, tmax)
+    ) |>
+  ggplot(aes(x = name, y = tmax, fill = name)) +
+  geom_violin()
+```
+
+# Complex facet grid
+
+```{r}
+litters_df =
+  read_csv("FAS_litters.csv") |>
+  janitor::clean_names() |>
+  separate(group, into = c("dose", "day_of_treatment"), sep = 3)
+
+pups_df =
+  read_csv("FAS_pups.csv") |>
+  janitor::clean_names()
+
+FAS_df =
+  left_join(pups_df, litters_df, by = "litter_number")
+
+FAS_df |>
+  select(dose, day_of_treatment, starts_with("pd")) |>
+  pivot_longer(
+    pd_ears:pd_walk,
+    names_to = "outcome",
+    values_to = "postnatal_day"
+  ) |>
+  drop_na() |>
+  mutate(
+    outcome =
+      fct_reorder(outcome, postnatal_day)
+  ) |>
+  ggplot(aes(x = dose, y = postnatal_day)) +
+  geom_violin() +
+  facet_grid(day_of_treatment ~ outcome)
+```
+
+# Session 10
+
+lubirdate: handy way of accessing month as a variable
+
+```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728", "USW00022534", "USS0023B17S"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2021-01-01",
+    date_max = "2022-12-31") |>
+  mutate(
+    name = recode(
+      id, 
+      USW00094728 = "CentralPark_NY", 
+      USW00022534 = "Molokai_HI",
+      USS0023B17S = "Waterhole_WA"),
+    tmin = tmin / 10,
+    tmax = tmax / 10,
+    month = lubridate::floor_date(date, unit = "month")) |>
+  select(name, id, everything())
+```
+
+```{r}
+weather_df |>
+  ggplot(aes(x = prcp)) +
+  geom_histogram()
+```
+
+here are the big outliers:
+
+```{r}
+weather_df |>
+  filter(prcp > 1000)
+```
+
+```{r}
+weather_df |>
+  filter(tmax >= 20, tmax <= 30) |>
+  ggplot(aes(x = tmin, y = tmax, color = name)) +
+  geom_point()
+```
+
+if you run this, you'll notice that grouping is sort of invisible
+only hint below is # groups: name comment
+
+(n_obs = n()) tells you to give you the number of observations
+  good way to determine sample size in groups you care about
+
+```{r}
+weather_df |>
+  group_by(name, month) |>
+  summarize(n_obs = n())
+```
+
+can also count number of names (and edit the name)
+
+```{r}
+weather_df |>
+  count(name, name = "n_obs")
+```
+
+
+```{r}
+weather_df |>
+  count(name, month) |>
+  pivot_wider(
+    names_from = name,
+    values_from = n
+  )
+```
+
+# General summaries
+
+can take us beyond simply counting
+
+2 ways to remove NA:
+
+```{r}
+weather_df |>
+  drop_na(tmax) |>
+  group_by(name) |>
+  summarize(
+    mean_tmax = mean(tmax),
+    median_tmax = median(tmax),
+    sd_tmax = sd(tmax)
+  )
+
+weather_df |>
+  group_by(name) |>
+  summarize(
+    mean_tmax = mean(tmax, na.rm = TRUE),
+    median_tmax = median(tmax, na.rm = TRUE),
+    sd_tmax = sd(tmax, na.rm = TRUE)
+  )
+```
+
+```{r}
+weather_df |>
+  group_by(name, month) |>
+  summarize(mean_tmax = mean(tmax, na.rm = TRUE)) |>
+  ggplot(aes(x = month, y = mean_tmax, color = name)) +
+  geom_point() +
+  geom_line()
+```
+
+more pivot wider:
+
+```{r}
+weather_df |>
+  group_by(name, month) |>
+  summarize(mean_tmax = mean(tmax, na.rm = TRUE)) |>
+  pivot_wider(
+    names_from = name,
+    values_from = mean_tmax
+  )
+```
+
+sometimes it's nice to format things as actual tables, especially if you're sending to others:
+use knitr packages kable function
+
+```{r}
+weather_df |>
+  group_by(name, month) |>
+  summarize(mean_tmax = mean(tmax, na.rm = TRUE)) |>
+  pivot_wider(
+    names_from = name,
+    values_from = mean_tmax
+  ) |>
+  knitr::kable(digits = 2)
+```
+
+# Grouped mutate
+
+can compute the month-level mean instead of one mean for the entire dataset, for example
+
+```{r}
+weather_df |>
+  group_by(name) |>
+  mutate(
+    mean_tmax = mean(tmax, na.rm = TRUE),
+    centered_tmax = tmax - mean_tmax
+  ) |>
+  ggplot(aes(x = date, y = centered_tmax, color = name)) +
+  geom_point()
+```
+
+min_rank() gives the ranking from lowest to highest
+  min_rank(desc()) puts it in descending/reverse order
+filter for the coldest days in each month
+
+```{r}
+weather_df |>
+  group_by(name, month) |>
+  mutate(tmax_rank = min_rank(tmax)) |>
+  filter(tmax_rank < 2)
+```
+
+lag(): for example, how does yesterday's temperature relate to today's temperature/how does previous temperature impact current/future temperatures
+  lag(tmax, 3) would go 3 rows back
+  if you forget your grouping, you will get random values
+
+```{r}
+weather_df |>
+  group_by(name) |>
+  mutate(
+    yesterday_tmax = lag(tmax)
+  )
+```
+
+show the day-to-day variation in temperature:
+
+```{r}
+weather_df |>
+  group_by(name) |>
+  mutate(temp_change = tmax - lag(tmax)) |>
+  summarize(
+    sd_temp_change = sd(temp_change, na.rm = TRUE)
+  )
+```

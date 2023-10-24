@@ -1,0 +1,247 @@
+---
+title: "Strings and factors"
+date: "2023-10-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message = FALSE}
+library(tidyverse)
+library(p8105.datasets)
+library(rvest)
+```
+
+# str_detect
+
+str_detect tells you whether or not the item was found in each value of your string vector
+
+str_replace(vector_name, "old", "new") to replace value
+
+```{r}
+string_vec = c("my", "name", "is", "sarah")
+
+str_detect(string_vec, "sarah")
+str_detect(string_vec, "e")
+
+str_replace(string_vec, "sarah", "Sarah")
+```
+
+for exact matches, add symbols to the beginning or end of a line inside str_detect
+  start with: ^ at the beginning
+  ends with: $ at the end
+
+```{r}
+string_vec = c(
+  "i think we all rule for participating",
+  "i think i have been caught",
+  "i think this will be quite fun actually",
+  "it will be fun, i think"
+  )
+
+str_detect(string_vec, "^i think")
+str_detect(string_vec, "i think$")
+```
+
+designate a list of characters that will count as a match with []
+
+```{r}
+string_vec = c(
+  "Time for a Pumpkin Spice Latte!",
+  "went to the #pumpkinpatch last weekend",
+  "Pumpkin Pie is obviously the best pie",
+  "SMASHING PUMPKINS -- LIVE IN CONCERT!!"
+  )
+
+str_detect(string_vec,"[Pp]umpkin")
+```
+
+you don’t have to list these; instead, you can provide a range of letters or numbers that count as a match
+  any instance that matches a number could be "[0-9]"
+  add [a-z] so anything after is a lowercase letter
+  
+spaces are a character so you have to be explicit about allowing spaces
+
+```{r}
+string_vec = c(
+  '7th inning stretch',
+  '1st half soon to begin. Texas won the toss.',
+  'she is 5 feet 4 inches tall',
+  '3AM - cant sleep :('
+  )
+
+str_detect(string_vec, "^[0-9][a-z]")
+```
+
+the character . matches everything
+
+```{r}
+string_vec = c(
+  'Its 7:11 in the evening',
+  'want to go to 7-11?',
+  'my flight is AA711',
+  'NetBios: scanning ip 203.167.114.66'
+  )
+
+str_detect(string_vec, "7.11")
+```
+
+[], (), and . are special characters, so if you want to detect them, you have to use \\ before
+  you can't use only 1 \ because \ is a special character
+  if you want to detect [ use "\\["
+  if you want to detect [# then use "\\[[0-9]"
+
+```{r}
+string_vec = c(
+  'The CI is [2, 5]',
+  ':-]',
+  ':-[',
+  'I found the answer on pages [6-7]'
+  )
+
+str_detect(string_vec, "\\[")
+```
+
+this is why people don't recommend using special characters, e.g., spell out and instead of &
+
+# Factors
+
+vec_sex looks like a string variable so you need to specify it as a factor
+
+use as.numeric to see the underlying numeric values
+
+```{r}
+vec_sex = factor(c("male", "male", "female", "female"))
+
+as.numeric(vec_sex)
+```
+
+to specify male as first:
+
+```{r}
+vec_sex = fct_relevel(vec_sex, "male")
+vec_sex
+```
+
+# NSDUH data
+
+enter the url, read the html with the url, specify the table element, specify the first table, and skip the first row
+
+```{r}
+nsduh_url = "http://samhda.s3-us-gov-west-1.amazonaws.com/s3fs-public/field-uploads/2k15StateFiles/NSDUHsaeShortTermCHG2015.htm"
+
+marijuana_table =
+  read_html(nsduh_url) |>
+  html_table() |>
+  first() |>
+  slice(-1)
+```
+
+need to tidy this data set:
+- the columns that contain P Value are nut helpful
+- you have column names that are variables via pivot longer but do not pivot state (use -State)
+- separate age & year by ( but put \\ before and then replace the ) with a space
+- need to remove random a and b letters (that reference the footnotes)
+- filter OUT certain regions using filter(!())
+
+```{r}
+marijuana_df =
+  marijuana_table |>
+  select(-contains("P Value")) |>
+  pivot_longer(
+    -State,
+    names_to = "age_year",
+    values_to = "percent"
+  ) |>
+  separate(age_year, into = c("age", "year"), "\\(") |>
+  mutate(
+    year = str_replace(year, "\\)", ""),
+    percent = str_replace(percent, "[a-b]", ""),
+    percent = as.numeric(percent)
+  ) |>
+  filter(!(State %in% c("Total U.S.", "Northeast", "Midwest", "South", "West")))
+```
+
+plot & reorder state by lowest to highest percent using fct_reorder
+
+```{r}
+marijuana_df |>
+  filter(age == "18-25") |>
+  mutate(State = fct_reorder(State, percent)) |>
+  ggplot(aes(x = State, y = percent, color = year)) +
+  geom_point() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+# NYC Restaurant Inspections
+
+```{r}
+data("rest_inspec")
+```
+
+```{r}
+rest_inspec |>
+  count(boro, grade) |>
+  pivot_wider(
+    names_from = "grade",
+    values_from = "n"
+  ) |>
+  knitr::kable()
+```
+
+```{r}
+inspection_df =
+  rest_inspec |>
+  filter(grade %in% c("A", "B", "C"), boro != "Missing") |>
+  mutate(
+    boro = str_to_title(boro),
+    dba = str_to_upper(dba)
+  )
+```
+
+Pizza names
+
+```{r}
+inspection_df |>
+  filter(str_detect(dba, "PIZZA")) |>
+  count(boro)
+```
+
+reorder by frequency of boro using mutate(boro = fct_infreq(boro))
+unlike color, fill shows by gradient
+
+```{r}
+inspection_df |>
+  filter(str_detect(dba, "PIZZA")) |>
+  mutate(boro = fct_infreq(boro)) |>
+  ggplot(aes(x = boro, fill = grade)) +
+  geom_bar()
+```
+
+order matters: replacing Manhattan's name after fct_infreq ignored fct_infreg
+
+factors have very specific values, so trying to use a value that is not an existing factor level won’t work or using a standard non-forcats function like recode or rename would not work
+
+```{r}
+inspection_df |>
+  filter(str_detect(dba, "PIZZA")) |>
+  mutate(
+    boro = fct_infreq(boro),
+    boro = str_replace(boro, "Manhattan", "The City")) |>
+  ggplot(aes(x = boro, fill = grade)) +
+  geom_bar()
+```
+
+instead, use fct_recode:
+
+```{r}
+inspection_df |>
+  filter(str_detect(dba, "PIZZA")) |>
+  mutate(
+    boro = fct_infreq(boro),
+    boro = fct_recode(boro, "The City" = "Manhattan")) |>
+  ggplot(aes(x = boro, fill = grade)) +
+  geom_bar()
+```
